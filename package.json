@@ -1,0 +1,32 @@
+{
+  "name": "veille-journaux",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "renommer": "tsx src/renommer.ts",
+    "test-mail": "tsx src/test-mail.ts",
+    "vieillir": "tsx src/vieillir.ts",
+    "interface": "tsx src/serveur.ts",
+    "sonder": "tsx src/sonder.ts",
+"amorcer": "tsx src/amorcer.ts"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "dotenv": "^18.0.6",
+    "express": "^5.3.0",
+    "nodemailer": "^10.1.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "@types/nodemailer": "^8.0.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

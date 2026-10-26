@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord · Veille AfGD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="index">
+<header class="top"><div>Veille journaux · AfGD</div><nav class="nav" id="nav"></nav></header>
+<main class="wrap">
+  <div class="entete">
+    <div><h1>Tableau de bord</h1>
+      <div class="mut" id="passages" style="margin-top:6px">Chargement…</div></div>
+    <span class="chip grand" id="pastille">…</span>
+  </div>
+  <div class="kpis" style="margin-top:24px" id="kpis"></div>
+  <div class="card"><h2>Robot</h2>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <button class="btn" id="lancer" type="button">Lancer le robot maintenant</button>
+      <span class="mut" id="etatRobot" role="status">Prêt.</span>
+    </div>
+    <pre class="sortie" id="sortie" hidden></pre>
+  </div>
+  <div class="card"><h2>Parcours d'un journal</h2><div class="flux" id="flux"></div></div>
+  <div class="card"><div class="entete"><h2>Derniers journaux</h2><a href="/journaux.html" class="mut">Voir tout →</a></div>
+    <div class="tableau" id="liste"></div></div>
+</main>
+<script src="commun.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function charger() {
+  try {
+    const d = await (await fetch("/api/etat")).json();
+    const k = d.kpi;
+    $("kpis").innerHTML = [
+      ["Journaux détectés", k.detectes], ["Pertinents (domaine)", k.pertinents],
+      ["Mails envoyés", k.envoyes], ["Suppressions à venir", k.suppressionsAVenir],
+    ].map(([t, v]) => `<div class="card"><div class="mut">${t}</div><div class="big">${v}</div></div>`).join("");
+    $("flux").innerHTML = d.parcours.map((p, i) =>
+      `<div class="etape"><div class="rond" style="background:${i < 5 ? "#534AB7" : "#0F766E"}">${p.nombre}</div>${U.esc(p.etape)}</div>`).join("");
+    const lignes = d.journaux.slice(0, 5);
+    $("liste").innerHTML = lignes.length
+      ? `<table><tr><th>Journal</th><th>Mots-clés</th><th>Statut</th><th>Suppression</th></tr>` +
+        lignes.map((j) => {
+          const mots = Object.keys(j.motsCles).map((m) => `<span class="chip">${U.esc(m)}</span>`).join("") || '<span class="mut">aucun</span>';
+          return `<tr><td><a href="journal.html?id=${encodeURIComponent(j.id)}">${U.esc(j.titre)}</a></td><td>${mots}</td><td>${U.statut(j.statut)}</td><td class="mut">${U.date(j.suppressionLe)}</td></tr>`;
+        }).join("") + `</table>`
+      : '<div class="mut">Aucun journal pour le moment. Déposez un fichier dans le dossier surveillé, puis lancez le robot.</div>';
+  } catch (e) { $("liste").textContent = "Impossible de lire les données."; }
+}
+
+async function chargerRobot() {
+  try {
+    const r = await (await fetch("/api/robot")).json();
+    const p = r.passage;
+    $("passages").textContent =
+      "Dernier passage : " + (p && p.fin ? U.jourHeure(p.fin) + " (" + p.nouveaux + " nouveau(x), " + p.envoyes + " mail(s))" : "aucun") +
+      " · Prochain passage : " + U.jourHeure(r.prochain);
+    const pl = r.planification;
+    let texte = "Robot actif", classe = "";
+    if (r.enCours) { texte = "En cours d'exécution"; classe = "a"; }
+    else if (p && p.ok === false) { texte = "Dernier passage en erreur"; classe = "r"; }
+    else if (pl.disponible && !pl.existe) { texte = "Non planifié"; classe = "a"; }
+    else if (pl.etat === "Disabled") { texte = "Planification désactivée"; classe = "a"; }
+    else if (!pl.disponible) { texte = "Planification non vérifiable"; classe = "g"; }
+    $("pastille").className = "chip grand " + classe;
+    $("pastille").textContent = texte;
+  } catch (e) { $("passages").textContent = "État du robot indisponible."; }
+}
+
+let suivi = null;
+function afficherExec(x) {
+  $("lancer").disabled = x.enCours;
+  if (x.sortie) { $("sortie").hidden = false; $("sortie").textContent = x.sortie; $("sortie").scrollTop = $("sortie").scrollHeight; }
+  if (x.enCours) $("etatRobot").textContent = "Le robot travaille…";
+  else if (x.fin) $("etatRobot").textContent =
+    (x.code === 0 ? "Terminé" : "Terminé avec une erreur (code " + x.code + ")") + " à " + new Date(x.fin).toLocaleTimeString("fr-FR");
+}
+async function suivre() {
+  const x = await (await fetch("/api/lancer")).json();
+  afficherExec(x);
+  if (x.enCours) suivi = setTimeout(suivre, 1500);
+  else { suivi = null; charger(); chargerRobot(); }
+}
+$("lancer").onclick = async () => {
+  const rep = await fetch("/api/lancer", { method: "POST" });
+  if (!rep.ok && rep.status !== 409) { $("etatRobot").textContent = "Impossible de lancer le robot."; return; }
+  if (!suivi) suivre();
+};
+charger(); chargerRobot(); suivre();
+setInterval(() => { charger(); chargerRobot(); }, 30000);
+</script>
+</body>
+</html>

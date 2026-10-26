@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connexion · Veille AfGD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap">
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Manrope,system-ui,sans-serif;color:#14213D;background:#F4F6F8}
+  form{width:100%;max-width:380px;background:#fff;border:1px solid #E1E6EE;border-radius:14px;padding:28px;box-sizing:border-box;margin:16px}
+  h1{margin:0 0 4px;font-size:22px;font-weight:800}
+  p{margin:0 0 20px;color:#5B6578;font-size:14px}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+  input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #C9D1DE;border-radius:8px;font:400 15px Manrope,system-ui,sans-serif}
+  button{margin-top:16px;width:100%;padding:12px;border-radius:10px;border:1px solid #0F766E;background:#0F766E;color:#fff;font:600 15px Manrope,system-ui,sans-serif;cursor:pointer}
+  #msg{margin-top:12px;font-size:13px;color:#B42318;min-height:18px}
+</style>
+</head>
+<body>
+<form id="f">
+  <h1>Veille journaux · AfGD</h1>
+  <p>Connectez-vous pour accéder à l'interface.</p>
+  <label for="mdp">Mot de passe</label>
+  <input id="mdp" type="password" autocomplete="current-password" required autofocus>
+  <button type="submit">Se connecter</button>
+  <div id="msg" role="alert"></div>
+</form>
+<script>
+document.getElementById("f").onsubmit = async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("msg");
+  msg.textContent = "";
+  const rep = await fetch("/api/connexion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ motDePasse: document.getElementById("mdp").value }),
+  });
+  if (rep.ok) location.href = "/";
+  else msg.textContent = (await rep.json()).erreur || "Échec de la connexion";
+};
+</script>
+</body>
+</html>

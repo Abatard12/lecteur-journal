@@ -1,0 +1,21 @@
+# --- Source externe (choisir UN mode) ---
+# json : une API qui renvoie la liste des journaux (le plus fiable)
+SOURCE_MODE=json
+SOURCE_URL=https://votre-api.exemple.org/actualites
+JSON_LIST_PATH=
+JSON_TITLE_FIELD=titre
+JSON_URL_FIELD=fichier
+
+# rss : un flux RSS/Atom         -> SOURCE_MODE=rss   + SOURCE_URL=https://.../flux.xml
+# page : une page avec des liens -> SOURCE_MODE=page  + SOURCE_URL=https://.../journaux
+#        (SOURCE_LIEN_REGEX facultatif, par défaut les liens .pdf)
+
+# Accès protégé (facultatif) : valeur complète de l'en-tête
+# SOURCE_AUTH=Bearer votre-jeton
+# SOURCE_AUTH_HEADER=Authorization
+
+# Fichiers hébergés sur un autre domaine que la source (facultatif)
+# SOURCE_HOTES_AUTORISES=cdn.exemple.org
+
+# Nombre maximal de nouveaux journaux traités par passage
+SOURCE_MAX_PAR_PASSAGE=10

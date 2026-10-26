@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réglages · Veille AfGD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="reglages">
+<header class="top"><div>Veille journaux · AfGD</div><nav class="nav" id="nav"></nav></header>
+<main class="wrap">
+  <h1 style="margin-bottom:24px">Réglages</h1>
+  <div class="cols">
+    <div class="col">
+      <div class="card"><h2>Mots-clés du domaine</h2>
+        <div class="chips" id="mots"></div>
+        <div class="ajout"><input id="mots-in" placeholder="ex. gouvernance" aria-label="Nouveau mot-clé" maxlength="50">
+          <button class="btn s" type="button" id="mots-add">Ajouter</button></div>
+        <div class="err" id="mots-err"></div>
+        <div class="mut">Un seul mot-clé suffit pour retenir un journal.</div></div>
+
+      <div class="card"><h2>Conservation</h2>
+        <label for="ret">Suppression après (jours)</label><input id="ret" type="number" min="1" max="365">
+        <label for="avert">Avertissement avant la suppression (jours)</label><input id="avert" type="number" min="0" max="364">
+        <div class="mut" style="margin-top:8px">La nouvelle durée s'applique à tous les journaux déjà présents.</div></div>
+
+      <div class="card"><h2>Heures de passage du robot</h2>
+        <div class="chips" id="heures"></div>
+        <div class="ajout"><input id="heures-in" type="time" aria-label="Nouvelle heure de passage">
+          <button class="btn s" type="button" id="heures-add">Ajouter</button></div>
+        <div class="err" id="heures-err"></div>
+        <div class="mut" id="planif">Planificateur de tâches : vérification…</div></div>
+    </div>
+
+    <div class="col">
+      <div class="card"><h2>Source des journaux</h2>
+        <div id="source"></div></div>
+
+      <div class="card"><h2>Envoi des mails</h2>
+        <label for="nom-exp">Nom de l'expéditeur</label><input id="nom-exp" maxlength="60">
+        <label for="adr-exp">Adresse d'envoi</label><input id="adr-exp" readonly>
+        <div class="mut" style="margin:8px 0 14px">L'adresse est liée au mot de passe d'application du fichier .env : elle ne se change pas ici.</div>
+        <h2 style="margin-top:6px">Destinataires</h2>
+        <div class="chips" id="dest"></div>
+        <div class="ajout"><input id="dest-in" type="email" placeholder="client@exemple.com" aria-label="Nouveau destinataire">
+          <button class="btn s" type="button" id="dest-add">Ajouter</button></div>
+        <div class="err" id="dest-err"></div></div>
+
+      <div class="card"><h2>Résumé par IA</h2>
+        <label for="ia">Fournisseur</label>
+        <select id="ia"><option value="gemini">Gemini (Google)</option><option value="anthropic">Claude (Anthropic)</option></select>
+        <label for="modele">Modèle (laisser vide pour le modèle par défaut)</label><input id="modele" maxlength="80">
+        <div class="mut" id="cle" style="margin-top:8px"></div></div>
+
+      <div class="card">
+        <button class="btn" id="enreg" type="button">Enregistrer les réglages</button>
+        <div id="msg" class="mut" style="margin-top:10px" role="status"></div>
+        <div class="mut" style="margin-top:10px">Les clés d'API et le mot de passe Gmail restent dans le fichier .env : ils ne s'affichent jamais ici.</div></div>
+    </div>
+  </div>
+</main>
+<script src="commun.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const S = { mots: [], dest: [], heures: [] };
+
+// Éditeur de pastilles : ajout (bouton ou Entrée) et retrait (×)
+function editeur(nom, normaliser, valider, aide) {
+  const liste = $(nom), saisie = $(nom + "-in"), err = $(nom + "-err");
+  const rendre = () => {
+    liste.innerHTML = S[nom].map((v, i) =>
+      `<span class="chip pill">${U.esc(v)}<button type="button" class="x" data-i="${i}" aria-label="Retirer ${U.esc(v)}">×</button></span>`).join("")
+      || '<span class="mut">Aucun</span>';
+  };
+  const ajouter = () => {
+    const v = normaliser(saisie.value);
+    err.textContent = "";
+    if (!v) return;
+    if (!valider(v)) { err.textContent = aide; return; }
+    if (!S[nom].includes(v)) S[nom].push(v);
+    if (nom === "heures") S[nom].sort();
+    saisie.value = "";
+    rendre();
+  };
+  liste.onclick = (e) => {
+    const b = e.target.closest("button[data-i]");
+    if (b) { S[nom].splice(Number(b.dataset.i), 1); rendre(); }
+  };
+  $(nom + "-add").onclick = ajouter;
+  saisie.onkeydown = (e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); ajouter(); } };
+  return rendre;
+}
+const rMots = editeur("mots", (v) => v.trim().replace(/,$/, ""), (v) => v.length >= 2 && v.length <= 50, "2 à 50 caractères.");
+const rDest = editeur("dest", (v) => v.trim().replace(/,$/, ""), (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Adresse mail invalide.");
+const rHeures = editeur("heures", (v) => v.trim(), (v) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v), "Format HH:MM attendu.");
+
+async function charger() {
+  const d = await (await fetch("/api/reglages")).json();
+  S.mots = d.motsCles; S.dest = d.destinataires; S.heures = d.heures;
+  rMots(); rDest(); rHeures();
+  $("ret").value = d.retentionDays;
+  $("avert").value = d.avertissementJours;
+  $("nom-exp").value = d.nomExpediteur;
+  $("adr-exp").value = d.adresseExpediteur || "non définie";
+  $("ia").value = d.fournisseurIA;
+  $("modele").value = d.modeleIA;
+  $("cle").innerHTML = d.cleIAPresente
+    ? '<span class="ok">Clé d\'API trouvée dans .env pour ce fournisseur.</span>'
+    : '<span class="ko">Aucune clé d\'API dans .env pour ce fournisseur : les résumés échoueront.</span>';
+  $("source").innerHTML = d.modeSource === "dossier"
+    ? `<label for="dossier">Dossier surveillé</label><input id="dossier" value="${U.esc(d.dossierSource)}" maxlength="260">
+       <div class="mut" style="margin-top:8px">Le dossier doit déjà exister. Un fichier est lu après 10 secondes sans modification.</div>`
+    : `<div class="ligne" style="border:0;padding:0"><span>Adresse source</span><span>${U.esc(d.urlSource || "non définie")}</span></div>
+       <div class="mut" style="margin-top:8px">Source par adresse web : elle se règle dans le fichier .env.</div>`;
+  const p = d.planification;
+  $("planif").textContent = !p.disponible
+    ? "Planificateur de tâches indisponible (hors Windows) : les heures sont enregistrées mais n'agissent pas."
+    : !p.existe ? "Aucune tâche « VeilleJournaux » : elle sera créée à l'enregistrement."
+    : "Tâche « VeilleJournaux » détectée (" + (p.etat === "Disabled" ? "désactivée" : "active") + ").";
+}
+
+$("enreg").onclick = async () => {
+  const msg = $("msg");
+  msg.className = "mut"; msg.textContent = "Enregistrement…";
+  const dossier = $("dossier");
+  const rep = await fetch("/api/reglages", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      motsCles: S.mots, destinataires: S.dest, heures: S.heures,
+      retentionDays: Number($("ret").value), avertissementJours: Number($("avert").value),
+      nomExpediteur: $("nom-exp").value, fournisseurIA: $("ia").value, modeleIA: $("modele").value,
+      dossierSource: dossier ? dossier.value : "",
+    }),
+  });
+  const d = await rep.json();
+  if (rep.ok) {
+    const p = d.planification;
+    msg.className = p && p.message && !p.appliquee ? "ko" : "ok";
+    msg.textContent = "Réglages enregistrés." + (p && p.message ? " " + p.message : "");
+    await charger();
+  } else { msg.className = "ko"; msg.textContent = d.erreur || "Échec de l'enregistrement"; }
+};
+charger();
+</script>
+</body>
+</html>

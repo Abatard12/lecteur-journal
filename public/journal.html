@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Détail du journal · Veille AfGD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="journal">
+<header class="top"><div>Veille journaux · AfGD</div><nav class="nav" id="nav"></nav></header>
+<main class="wrap">
+  <a class="retour" href="/journaux.html">← Retour à la liste</a>
+  <div id="contenu"><p class="mut">Chargement…</p></div>
+</main>
+<script src="commun.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function charger() {
+  const zone = $("contenu");
+  const id = new URLSearchParams(location.search).get("id");
+  if (!id) { zone.innerHTML = '<p class="mut">Aucun journal sélectionné.</p>'; return; }
+  const rep = await fetch("/api/journal?id=" + encodeURIComponent(id));
+  if (!rep.ok) { zone.innerHTML = '<p class="mut">Journal introuvable.</p>'; return; }
+  const j = await rep.json();
+  document.title = j.titre + " · Veille AfGD";
+
+  const lib = { envoye: ["Envoyé par mail", ""], hors_domaine: ["Hors domaine", "g"], supprime: ["Supprimé", "g"], illisible: ["Illisible", "a"] };
+  const [libelle, classe] = lib[j.statut] || ["En cours", "a"];
+  const max = Math.max(1, ...Object.values(j.motsCles));
+  const mots = Object.entries(j.motsCles).map(([m, n]) =>
+    `<div class="mot"><div class="t"><span>${U.esc(m)}</span><span>${n}×</span></div><div class="fond"><div class="barre" style="width:${Math.round((n / max) * 100)}%"></div></div></div>`
+  ).join("") || '<p class="mut" style="margin:0">Aucun mot-clé détecté.</p>';
+  const dossiers = j.emplacements.map((e) =>
+    `<div class="ligne"><span>${U.esc(e.dossier)}</span><span class="chip ${e.present ? "" : "g"}">${e.present ? "présent" : "absent"}</span></div>`).join("");
+  const histo = j.historique.map((h) => `<li>${U.esc(h.evenement)}<br><span class="mut">${U.dateHeure(h.date)}</span></li>`).join("");
+  const resume = j.resume ? `<p class="resume">${U.esc(j.resume)}</p>` : '<p class="mut" style="margin:0">Aucun résumé affichable pour ce journal.</p>';
+
+  const present = (n) => j.emplacements.some((e) => e.dossier === n && e.present);
+  const articleDispo = ["telechargements", "journaux-afgd", "depot"].some(present);
+  const resumeDispo = present("resumes");
+  const lien = (type, texte, ok, primaire) => ok
+    ? `<a class="btn ${primaire ? "" : "s"}" href="/api/telecharger?id=${encodeURIComponent(j.id)}&amp;type=${type}">${texte}</a>`
+    : `<span class="btn off">${texte}</span>`;
+  const boutons = lien("article", "Télécharger l'article", articleDispo, true) + lien("resume", "Télécharger le résumé", resumeDispo, false) +
+    (j.mailDispo ? '<button class="btn s" id="voirMail" type="button">Voir le mail envoyé</button>' : '<span class="btn off">Voir le mail envoyé</span>');
+
+  const nomActuel = (j.resumeFichier || "").replace(/\.md$/i, "");
+  const renommage = resumeDispo
+    ? `<div class="card"><h2>Renommer le résumé</h2>
+         <label for="nom">Nom du fichier (.md ajouté automatiquement)</label>
+         <input id="nom" value="${U.esc(nomActuel)}" maxlength="100">
+         <div class="actions"><button class="btn" id="ok" type="button">Renommer</button></div>
+         <div class="mut" id="msg" style="margin-top:10px" role="status"></div></div>` : "";
+
+  zone.innerHTML = `
+    <div class="entete" style="margin:8px 0 24px"><h1>${U.esc(j.titre)}</h1><span class="chip grand ${classe}">${libelle}</span></div>
+    <div class="cols">
+      <div class="principale">
+        <div class="card"><h2>Résumé généré par l'IA</h2>${resume}<div class="actions">${boutons}</div>
+          <div class="mailbox" id="mailzone" hidden></div></div>
+        <div class="card" style="margin-top:16px"><h2>Historique</h2><ul class="histo">${histo}</ul></div>
+      </div>
+      <div class="laterale">
+        <div class="card"><h2>Mots-clés détectés</h2>${mots}</div>
+        <div class="card"><h2>Emplacements</h2>${dossiers}</div>
+        ${renommage}
+        <div class="card"><h2>Conservation</h2><div style="font-size:14px;line-height:1.7">${j.suppressionLe
+          ? `Suppression de tous les dossiers le <b>${U.date(j.suppressionLe)}</b>` : "Ce journal a été supprimé des dossiers."}</div></div>
+      </div>
+    </div>`;
+
+  const bm = $("voirMail");
+  if (bm) bm.onclick = async () => {
+    const zoneMail = $("mailzone");
+    if (!zoneMail.hidden) { zoneMail.hidden = true; return; }
+    const r = await fetch("/api/mail?id=" + encodeURIComponent(j.id));
+    if (!r.ok) { zoneMail.innerHTML = '<span class="ko">Copie du mail introuvable.</span>'; zoneMail.hidden = false; return; }
+    const m = await r.json();
+    zoneMail.innerHTML =
+      `<div class="ligne" style="border:0;padding:0"><b>Objet</b><span>${U.esc(m.sujet)}</span></div>
+       <div class="mut" style="margin-top:6px">De : ${U.esc(m.de)} · À : ${U.esc((m.a || []).join(", "))} · Envoyé le ${U.dateHeure(m.envoyeLe)}</div>
+       <div class="mut">Pièces jointes : ${U.esc((m.pieces || []).join(", ") || "aucune")}</div>
+       <pre>${U.esc(m.texte)}</pre>`;
+    zoneMail.hidden = false;
+  };
+
+  const ok = $("ok");
+  if (ok) ok.onclick = async () => {
+    $("msg").textContent = "Renommage en cours…";
+    const r = await fetch("/api/renommer", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: j.id, nom: $("nom").value }) });
+    const d = await r.json();
+    if (r.ok) { await charger(); $("msg").textContent = "Renommé : " + d.resumeFichier; }
+    else $("msg").textContent = d.erreur || "Échec du renommage";
+  };
+}
+charger();
+</script>
+</body>
+</html>

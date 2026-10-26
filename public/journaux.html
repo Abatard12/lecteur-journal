@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journal · Veille AfGD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="journal">
+<header class="top"><div>Veille journaux · AfGD</div><nav class="nav" id="nav"></nav></header>
+<main class="wrap">
+  <h1>Journal</h1>
+  <div class="mut" id="compte" style="margin-top:6px">Chargement…</div>
+  <div class="card"><div class="filtres">
+    <input id="q" type="search" placeholder="Rechercher un journal ou un mot-clé…" aria-label="Rechercher">
+    <select id="st" aria-label="Filtrer par statut">
+      <option value="">Tous les statuts</option><option value="envoye">Envoyé</option>
+      <option value="en_cours">En cours</option><option value="hors_domaine">Hors domaine</option>
+      <option value="illisible">Illisible</option><option value="supprime">Supprimé</option><option value="ignore">Ignoré (déjà publié)</option>
+    </select></div></div>
+  <div class="card"><div class="tableau" id="liste"></div></div>
+</main>
+<script src="commun.js"></script>
+<script>
+let tous = [];
+function afficher() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const st = document.getElementById("st").value;
+  const f = tous.filter((j) =>
+    (!st || U.categorie(j.statut) === st) &&
+    (!q || (j.titre + " " + Object.keys(j.motsCles).join(" ")).toLowerCase().includes(q)));
+  document.getElementById("compte").textContent = f.length + " journal(aux) sur " + tous.length;
+  document.getElementById("liste").innerHTML = f.length
+    ? `<table><tr><th>Journal</th><th>Mots-clés</th><th>Statut</th><th>Détecté le</th><th>Suppression</th></tr>` +
+      f.map((j) => {
+        const mots = Object.entries(j.motsCles).map(([m, n]) => `<span class="chip">${U.esc(m)} ${n}×</span>`).join("") || '<span class="mut">aucun</span>';
+        return `<tr><td><a href="journal.html?id=${encodeURIComponent(j.id)}">${U.esc(j.titre)}</a></td><td>${mots}</td><td>${U.statut(j.statut)}</td><td class="mut">${U.date(j.detecteLe)}</td><td class="mut">${U.date(j.suppressionLe)}</td></tr>`;
+      }).join("") + `</table>`
+    : '<div class="mut">Aucun journal ne correspond.</div>';
+}
+(async () => {
+  tous = (await (await fetch("/api/etat")).json()).journaux;
+  afficher();
+  document.getElementById("q").oninput = afficher;
+  document.getElementById("st").onchange = afficher;
+})();
+</script>
+</body>
+</html>
