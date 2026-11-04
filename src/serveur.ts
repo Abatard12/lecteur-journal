@@ -7,7 +7,9 @@ import { chargerEtat } from "./state";
 import { dateSuppression, renommerResume } from "./resumes";
 import { exigerConnexion, connexion, deconnexion, authActive, origineAutorisee } from "./auth";
 import { lirePassage } from "./passage";
+import { parcoursDe } from "./parcours";
 import { lirePlanification, appliquerHeures, prochaineOccurrence, heureValide } from "./planification";
+import { installerRoutesSources } from "./routes-sources";
 
 const JOUR = 86_400_000;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,9 +43,17 @@ async function existe(chemin: string) {
   }
 }
 
+// Le robot travaille-t-il en ce moment ? (lancé par l'interface ou par le Planificateur)
+async function robotTravaille(): Promise<boolean> {
+  const p = await lirePassage();
+  const recent = !!p && !p.fin && Date.now() - new Date(p.debut).getTime() < 15 * 60 * 1000;
+  return exec.enCours || recent;
+}
+
 // ---------- Tableau de bord et liste ----------
 app.get("/api/etat", async (_req, res) => {
   const etat = await chargerEtat();
+  const travaille = await robotTravaille();
   const maintenant = Date.now();
   const compte = (f: (e: (typeof etat)[number]) => boolean) => etat.filter(f).length;
   const aVenir = etat.filter((e) => {
@@ -78,6 +88,7 @@ app.get("/api/etat", async (_req, res) => {
         statut: e.statut,
         motsCles: e.motsCles ?? {},
         detecteLe: e.detecteLe,
+        parcours: parcoursDe(e, travaille).map(({ cle, nom, etat, detail }) => ({ cle, nom, etat, detail: detail ?? null })),
         suppressionLe: e.statut === "supprime" ? null : e.fichier ? dateSuppression(e).toISOString() : null,
       })),
   });
@@ -98,6 +109,8 @@ app.get("/api/journal", async (req, res) => {
     titre: e.titre,
     statut: e.statut,
     fichier: f ?? null,
+    parcours: parcoursDe(e, await robotTravaille()),
+    incident: e.incident ?? null,
     resumeFichier: r ?? null,
     resume: e.resume ?? null,
     motsCles: e.motsCles ?? {},
@@ -219,7 +232,6 @@ app.post("/api/reglages", async (req, res) => {
   const fournisseurIA = String(b.fournisseurIA ?? "");
   const modeleIA = String(b.modeleIA ?? "").trim();
   const nomExpediteur = String(b.nomExpediteur ?? "").trim();
-  const dossierSource = String(b.dossierSource ?? "").trim();
 
   let erreur: string | null =
     motsCles.length < 1 || motsCles.length > 30 || motsCles.some((m) => m.length < 2 || m.length > 50)
@@ -240,19 +252,6 @@ app.post("/api/reglages", async (req, res) => {
       ? "Nom d'expéditeur : 1 à 60 caractères, sans < > \" ni retour à la ligne"
       : null;
 
-  let dossierResolu = config.source.dossier;
-  if (!erreur && config.source.mode === "dossier") {
-    if (!dossierSource || dossierSource.length > 260 || dossierSource.includes("\0")) {
-      erreur = "Dossier surveillé : chemin invalide";
-    } else {
-      dossierResolu = path.resolve(dossierSource);
-      try {
-        if (!(await fs.stat(dossierResolu)).isDirectory()) erreur = "Dossier surveillé : ce chemin n'est pas un dossier";
-      } catch {
-        erreur = "Dossier surveillé : ce dossier n'existe pas. Créez-le d'abord.";
-      }
-    }
-  }
   if (erreur) {
     res.status(400).json({ erreur });
     return;
@@ -275,7 +274,6 @@ app.post("/api/reglages", async (req, res) => {
         nomExpediteur,
         fournisseurIA,
         modeleIA: modeleIA || undefined,
-        dossierSource: config.source.mode === "dossier" ? dossierSource : undefined,
       },
       null,
       2
@@ -290,7 +288,6 @@ app.post("/api/reglages", async (req, res) => {
   config.mail.nom = nomExpediteur;
   config.heures = heures;
   config.ia = calculerIA(fournisseurIA, modeleIA || undefined);
-  if (config.source.mode === "dossier") config.source.dossier = dossierResolu;
 
   let planification = { appliquee: false, message: "" };
   if (heuresChangees) {
@@ -341,6 +338,8 @@ app.post("/api/lancer", (req, res) => {
     exec.enCours = false;
     exec.fin = new Date().toISOString();
     exec.code = code;
+    // Les détails restent dans un fichier, jamais envoyés au navigateur
+    fs.writeFile(path.join(config.root, "dernier-passage.log"), exec.sortie, "utf8").catch(() => {});
   };
   // Programme et arguments fixes : rien de ce qu'envoie le navigateur n'est exécuté
   const enfant = spawn(process.execPath, ["--import", "tsx", "src/index.ts"], { cwd: process.cwd(), windowsHide: true });
@@ -363,8 +362,11 @@ app.post("/api/lancer", (req, res) => {
 });
 
 app.get("/api/lancer", (_req, res) => {
-  res.json(exec);
+  // Seulement l'état : jamais le texte écrit par le robot
+  res.json({ enCours: exec.enCours, debut: exec.debut, fin: exec.fin, code: exec.code });
 });
+
+installerRoutesSources(app);
 
 const PORT = Number(process.env.PORT_INTERFACE ?? 4000);
 const HOTE = process.env.HOTE_INTERFACE ?? "127.0.0.1";

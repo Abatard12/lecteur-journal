@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import { config } from "./config";
-import { detecter } from "./sources";
+import { detecterTout } from "./sources";
 import { chargerEtat, sauverEtat } from "./state";
 
 // Marque tous les journaux DÉJÀ publiés comme « ignorés » : le robot ne traitera
@@ -9,7 +9,7 @@ async function main() {
   await fs.mkdir(config.root, { recursive: true });
   const etat = await chargerEtat();
   const vus = new Set(etat.map((e) => e.id));
-  const trouves = await detecter();
+  const trouves = await detecterTout();
   let n = 0;
   for (const j of trouves.filter((x) => !vus.has(x.id))) {
     etat.push({ ...j, detecteLe: new Date().toISOString(), statut: "ignore" });

@@ -13,6 +13,14 @@ export async function chargerEtat(): Promise<Enregistrement[]> {
   }
 }
 
-export async function sauverEtat(etat: Enregistrement[]) {
-  await fs.writeFile(FICHIER, JSON.stringify(etat, null, 2));
+// Les écritures sont mises en file : des journaux traités en parallèle ne s'écrasent pas
+let file: Promise<void> = Promise.resolve();
+export function sauverEtat(etat: Enregistrement[]): Promise<void> {
+  file = file
+    .then(async () => {
+      await fs.mkdir(config.root, { recursive: true });
+      await fs.writeFile(FICHIER, JSON.stringify(etat, null, 2));
+    })
+    .catch((e) => console.error(" ✗ écriture de l'état impossible :", (e as Error).message));
+  return file;
 }

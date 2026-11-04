@@ -62,3 +62,61 @@ ul.histo li{padding:8px 0;border-top:1px solid #E8ECF2;font-size:14px}
 .filtres input{flex:2 1 260px}.filtres select{flex:1 1 180px}
 .mailbox{border:1px solid #E1E6EE;border-radius:10px;padding:14px;margin-top:16px;background:#F9FAFC}
 .mailbox pre{white-space:pre-wrap;font:13px/1.6 Manrope,system-ui,sans-serif;margin:12px 0 0}
+
+dialog{border:0;border-radius:16px;padding:0;max-width:580px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(20,33,61,.35);color:#14213D;font-family:Manrope,system-ui,sans-serif}
+dialog::backdrop{background:rgba(20,33,61,.55)}
+.dlg{padding:26px}
+.dlg h2{font-size:20px;margin:0 0 4px}
+.dlg .actions{justify-content:flex-end}
+.etapes{list-style:none;margin:18px 0 8px;padding:0}
+.etapes li{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid #E8ECF2;font-size:15px;line-height:1.4}
+.etapes .ico{flex:0 0 22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:#D5DBE6}
+.etapes .ico.ok{background:#0F766E}
+.etapes .ico.ko{background:#B42318}
+.etapes .ico.att{background:transparent;border:3px solid #E1E6EE;border-top-color:#0F766E;animation:tourne .8s linear infinite}
+.etapes .detail{display:block;color:#9B1C12;font-size:13px;margin-top:3px}
+@keyframes tourne{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.etapes .ico.att{animation:none}}
+.bandeau{padding:12px 14px;border-radius:10px;font-size:14px;line-height:1.5;margin-top:10px}
+.bandeau.ok{background:#E6F4F1;color:#0B5F58}
+.bandeau.ko{background:#FDE7E4;color:#9B1C12}
+.sources{display:grid;gap:16px}
+.src{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+.src .adr{word-break:break-all}
+.groupe[hidden]{display:none}
+.btn.petit{padding:7px 12px;font-size:13px}
+details.aide{margin-top:10px;font-size:13px;color:#5B6578}
+details.aide summary{cursor:pointer;font-weight:600;color:#14213D}
+
+[data-acces][hidden]{display:none}
+
+/* Parcours : étapes reliées par des flèches, la couleur indique l'état */
+.parcours{display:flex;align-items:flex-start;overflow-x:auto;padding:4px 2px 8px}
+.pe{flex:1 0 96px;text-align:center}
+.pt{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;background:#E1E6EE}
+.pn{font-size:13px;font-weight:600}
+.ps{font-size:12px;margin-top:2px;color:#5B6578}
+.pf{flex:0 0 36px;height:44px;display:flex;align-items:center;justify-content:center;color:#C9D1DE}
+.pf svg{width:30px;height:15px}
+.pe.fait .pt{background:#0F766E}.pe.fait .ps{color:#0B5F58}
+.pe.en_cours .pt{background:#2F5BEA;animation:pulse 1.3s ease-in-out infinite}.pe.en_cours .ps{color:#2F5BEA;font-weight:600}
+.pe.reporte .pt{background:#D98A0B}.pe.reporte .ps{color:#8A5A00;font-weight:600}
+.pe.echec .pt{background:#B42318}.pe.echec .ps{color:#9B1C12;font-weight:600}
+.pe.attente .pt{background:#E8ECF2;color:#5B6578}
+.pe.non_concerne .pt{background:#fff;color:#9AA5B8;border:2px dashed #C9D1DE}
+.pe.non_concerne .pn,.pe.non_concerne .ps{color:#9AA5B8}
+.pf.fait{color:#0F766E}.pf.en_cours{color:#2F5BEA}.pf.reporte{color:#D98A0B}.pf.echec{color:#B42318}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(47,91,234,.45)}50%{box-shadow:0 0 0 10px rgba(47,91,234,0)}}
+@media (prefers-reduced-motion:reduce){.pe.en_cours .pt,.mini i.en_cours{animation:none}}
+.legende{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:12px;color:#5B6578}
+.mini{display:inline-flex;align-items:center;gap:2px}
+.mini b{width:5px;height:2px;background:#C9D1DE;display:block}
+.mini i,.legende i{display:inline-block;width:12px;height:12px;border-radius:50%;background:#E8ECF2;box-sizing:border-box}
+.legende i{margin-right:6px;vertical-align:-1px}
+.mini i.fait,.legende i.fait{background:#0F766E}
+.mini i.en_cours,.legende i.en_cours{background:#2F5BEA}
+.mini i.en_cours{animation:pulse 1.3s ease-in-out infinite}
+.mini i.reporte,.legende i.reporte{background:#D98A0B}
+.mini i.echec,.legende i.echec{background:#B42318}
+.mini i.non_concerne,.legende i.non_concerne{background:#fff;border:2px dashed #C9D1DE}
+.bandeau.a{background:#FFF1D6;color:#8A5A00}

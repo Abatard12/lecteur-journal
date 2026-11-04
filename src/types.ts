@@ -1,4 +1,4 @@
-export type Journal = { id: string; titre: string; url: string };
+export type Journal = { id: string; titre: string; url: string; sourceId?: string };
 
 export type Statut =
   | "detecte"
@@ -26,5 +26,6 @@ export type Enregistrement = Journal & {
   mailFichier?: string;
   envoyeLe?: string;
   avertiLe?: string;
+  incident?: { etape: string; type: "reporte" | "echec"; message: string; le: string };
   supprimeLe?: string;
 };

@@ -32,10 +32,10 @@ function afficher() {
     (!q || (j.titre + " " + Object.keys(j.motsCles).join(" ")).toLowerCase().includes(q)));
   document.getElementById("compte").textContent = f.length + " journal(aux) sur " + tous.length;
   document.getElementById("liste").innerHTML = f.length
-    ? `<table><tr><th>Journal</th><th>Mots-clés</th><th>Statut</th><th>Détecté le</th><th>Suppression</th></tr>` +
+    ? `<table><tr><th>Journal</th><th>Mots-clés</th><th>Statut</th><th>Parcours</th><th>Détecté le</th><th>Suppression</th></tr>` +
       f.map((j) => {
         const mots = Object.entries(j.motsCles).map(([m, n]) => `<span class="chip">${U.esc(m)} ${n}×</span>`).join("") || '<span class="mut">aucun</span>';
-        return `<tr><td><a href="journal.html?id=${encodeURIComponent(j.id)}">${U.esc(j.titre)}</a></td><td>${mots}</td><td>${U.statut(j.statut)}</td><td class="mut">${U.date(j.detecteLe)}</td><td class="mut">${U.date(j.suppressionLe)}</td></tr>`;
+        return `<tr><td><a href="journal.html?id=${encodeURIComponent(j.id)}">${U.esc(j.titre)}</a></td><td>${mots}</td><td>${U.statut(j.statut)}</td><td>${U.mini(j.parcours)}</td><td class="mut">${U.date(j.detecteLe)}</td><td class="mut">${U.date(j.suppressionLe)}</td></tr>`;
       }).join("") + `</table>`
     : '<div class="mut">Aucun journal ne correspond.</div>';
 }

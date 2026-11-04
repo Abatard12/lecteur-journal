@@ -11,7 +11,9 @@
     "vieillir": "tsx src/vieillir.ts",
     "interface": "tsx src/serveur.ts",
     "sonder": "tsx src/sonder.ts",
-"amorcer": "tsx src/amorcer.ts"
+    "amorcer": "tsx src/amorcer.ts",
+    "tester-ia": "tsx src/tester-ia.ts",
+    "retraiter": "tsx src/retraiter.ts"
   },
   "keywords": [],
   "type": "commonjs",
