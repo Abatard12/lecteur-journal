@@ -34,8 +34,9 @@
     </div>
 
     <div class="col">
-      <div class="card"><h2>Source des journaux</h2>
-        <div id="source"></div></div>
+      <div class="card"><h2>Sources des journaux</h2>
+        <div class="mut" style="margin-bottom:12px">Les dossiers et les sites lus par le robot se gèrent dans une page à part.</div>
+        <a class="btn s" href="/sources.html">Gérer les sources</a></div>
 
       <div class="card"><h2>Envoi des mails</h2>
         <label for="nom-exp">Nom de l'expéditeur</label><input id="nom-exp" maxlength="60">
@@ -108,11 +109,6 @@ async function charger() {
   $("cle").innerHTML = d.cleIAPresente
     ? '<span class="ok">Clé d\'API trouvée dans .env pour ce fournisseur.</span>'
     : '<span class="ko">Aucune clé d\'API dans .env pour ce fournisseur : les résumés échoueront.</span>';
-  $("source").innerHTML = d.modeSource === "dossier"
-    ? `<label for="dossier">Dossier surveillé</label><input id="dossier" value="${U.esc(d.dossierSource)}" maxlength="260">
-       <div class="mut" style="margin-top:8px">Le dossier doit déjà exister. Un fichier est lu après 10 secondes sans modification.</div>`
-    : `<div class="ligne" style="border:0;padding:0"><span>Adresse source</span><span>${U.esc(d.urlSource || "non définie")}</span></div>
-       <div class="mut" style="margin-top:8px">Source par adresse web : elle se règle dans le fichier .env.</div>`;
   const p = d.planification;
   $("planif").textContent = !p.disponible
     ? "Planificateur de tâches indisponible (hors Windows) : les heures sont enregistrées mais n'agissent pas."

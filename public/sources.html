@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sources · Veille AfGD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="sources">
+<header class="top"><div>Veille journaux · AfGD</div><nav class="nav" id="nav"></nav></header>
+<main class="wrap">
+  <div class="entete">
+    <div><h1>Sources des journaux</h1>
+      <div class="mut" style="margin-top:6px">Le robot lit toutes les sources actives à chaque passage.</div></div>
+    <button class="btn" id="ajouter" type="button">Ajouter une source</button>
+  </div>
+  <div class="sources" id="liste" style="margin-top:24px"><div class="mut">Chargement…</div></div>
+</main>
+
+<!-- Formulaire d'ajout -->
+<dialog id="dlgAjout" aria-labelledby="titreAjout">
+  <form class="dlg" id="formAjout" autocomplete="off">
+    <h2 id="titreAjout">Ajouter une source</h2>
+    <div class="mut">Le robot se connecte avant d'enregistrer : rien n'est ajouté si la connexion échoue.</div>
+    <div style="margin-top:12px"><button class="btn s petit" type="button" id="preLaNation">Préremplir : La Nation Bénin</button></div>
+
+    <label for="type">Type de source</label>
+    <select id="type">
+      <option value="dossier">Dossier local (espace de dépôt)</option>
+      <option value="page">Site web avec compte (page de liens)</option>
+      <option value="json">API JSON</option>
+      <option value="rss">Flux RSS / Atom</option>
+    </select>
+    <label for="nom">Nom de la source</label>
+    <input id="nom" maxlength="60" required>
+
+    <div class="groupe" data-types="dossier">
+      <label for="dossier">Chemin du dossier</label>
+      <input id="dossier" maxlength="260" placeholder="C:\Journaux\a-publier">
+    </div>
+
+    <div class="groupe" data-types="page json rss">
+      <label for="url">Adresse</label>
+      <input id="url" type="url" maxlength="500" placeholder="https://site.exemple.org/journaux">
+      <label for="acces">Mode d'accès au site</label>
+      <select id="acces">
+        <option value="identifiants">Identifiant et mot de passe (connexion automatique)</option>
+        <option value="cookie">Cookie de session ou clé d'accès</option>
+      </select>
+
+      <div data-acces="identifiants">
+        <label for="identifiant">Identifiant (e-mail)</label>
+        <input id="identifiant" maxlength="200" autocomplete="off">
+        <label for="motdepasse">Mot de passe</label>
+        <input id="motdepasse" type="password" maxlength="200" autocomplete="new-password">
+        <label for="urlconnexion">Adresse de la page de connexion (facultatif)</label>
+        <input id="urlconnexion" type="url" maxlength="500" placeholder="https://site.exemple.org/login">
+        <div class="mut" style="margin-top:6px">Le robot remplit lui-même le formulaire de connexion à chaque passage. Chaque test ouvre une vraie session : des mots de passe erronés répétés peuvent verrouiller le compte.</div>
+      </div>
+
+      <div data-acces="cookie">
+        <label for="entete">En-tête d'accès</label>
+        <input id="entete" value="Cookie" maxlength="40">
+        <label for="auth">Cookie de session ou clé d'accès</label>
+        <input id="auth" type="password" autocomplete="off" spellcheck="false">
+        <div class="mut" style="margin-top:6px">Conservé sur ce poste, jamais réaffiché dans l'interface.</div>
+        <details class="aide"><summary>Où trouver le cookie de session ?</summary>
+          <ol style="margin:8px 0 0 18px;padding:0;line-height:1.6">
+            <li>Connectez-vous au site dans votre navigateur.</li>
+            <li>Ouvrez la page des journaux, puis la touche F12 et l'onglet « Réseau ».</li>
+            <li>Rechargez la page et cliquez sur la première requête.</li>
+            <li>Copiez la valeur de la ligne « Cookie » dans les en-têtes de requête.</li>
+          </ol></details>
+      </div>
+    </div>
+
+    <div class="groupe" data-types="page">
+      <label for="regex">Motif des liens de journaux</label>
+      <input id="regex" maxlength="200" value="\.pdf($|[?#])">
+      <div class="mut" style="margin-top:6px">Expression régulière appliquée à l'adresse de chaque lien.</div>
+    </div>
+
+    <div class="groupe" data-types="json">
+      <label for="listPath">Chemin de la liste (vide si la réponse est une liste)</label>
+      <input id="listPath" maxlength="60" placeholder="data.items">
+      <label for="titleField">Champ du titre</label><input id="titleField" value="title" maxlength="60">
+      <label for="urlField">Champ du lien</label><input id="urlField" value="url" maxlength="60">
+    </div>
+
+    <div class="groupe" data-types="page json rss">
+      <label for="garder">Journaux déjà publiés à traiter (les plus récents)</label>
+      <input id="garder" type="number" min="0" max="5" value="0">
+      <div class="mut" style="margin-top:6px">Les autres sont marqués « ignorés » pour ne pas envoyer de mails en rafale.</div>
+    </div>
+
+    <div class="err" id="erreurForm" role="alert"></div>
+    <div class="actions">
+      <button class="btn s" type="button" id="annulerAjout">Annuler</button>
+      <button class="btn" type="submit">Se connecter et ajouter</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Boîte de dialogue de connexion -->
+<dialog id="dlgConnexion" aria-labelledby="titreConnexion">
+  <div class="dlg">
+    <h2 id="titreConnexion">Connexion en cours…</h2>
+    <div class="mut" id="sousTitre"></div>
+    <ul class="etapes" id="etapes" aria-live="polite"></ul>
+    <div id="bandeau" aria-live="polite"></div>
+    <div class="actions" id="boutonsConnexion" hidden></div>
+  </div>
+</dialog>
+
+<script src="commun.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+const TYPES = { dossier: "Dossier local", page: "Site web", json: "API JSON", rss: "Flux RSS" };
+const post = (url, corps, methode = "POST") => fetch(url, {
+  method: methode, headers: { "Content-Type": "application/json" }, body: corps === undefined ? undefined : JSON.stringify(corps) });
+
+/* ---------- Liste des sources ---------- */
+async function charger() {
+  const liste = await (await fetch("/api/sources")).json();
+  $("liste").innerHTML = liste.length ? liste.map((s) => `
+    <div class="card src" style="margin-top:0">
+      <div style="flex:1 1 320px">
+        <div style="font-weight:800;font-size:17px">${U.esc(s.nom)}
+          <span class="chip g" style="margin-left:8px">${TYPES[s.type] || s.type}</span>
+          <span class="chip ${s.actif ? "" : "g"}">${s.actif ? "Active" : "Désactivée"}</span>
+          ${s.illisible ? '<span class="chip r">Accès illisibles</span>' : s.connexionAuto ? '<span class="chip a">Connexion automatique</span>' : s.authDefinie ? '<span class="chip a">Accès protégé</span>' : ""}</div>
+        <div class="mut adr" style="margin-top:6px">${U.esc(s.url || s.dossier || "")}</div>
+        <div class="mut" style="margin-top:4px">${s.journaux} journal(aux) lié(s) à cette source</div>
+      </div>
+      <div class="actions" style="margin:0">
+        <button class="btn s petit" data-a="tester" data-id="${U.esc(s.id)}">Tester la connexion</button>
+        <button class="btn s petit" data-a="bascule" data-id="${U.esc(s.id)}" data-actif="${s.actif}">${s.actif ? "Désactiver" : "Activer"}</button>
+        <button class="btn s petit" data-a="supprimer" data-id="${U.esc(s.id)}" data-nom="${U.esc(s.nom)}">Supprimer</button>
+      </div>
+    </div>`).join("") : '<div class="card mut" style="margin-top:0">Aucune source. Ajoutez-en une pour que le robot ait des journaux à lire.</div>';
+}
+
+$("liste").onclick = async (e) => {
+  const b = e.target.closest("button[data-a]");
+  if (!b) return;
+  const id = b.dataset.id;
+  if (b.dataset.a === "tester") {
+    const s = (await (await fetch("/api/sources")).json()).find((x) => x.id === id);
+    await lancerConnexion({ titre: "Test de la source « " + s.nom + " »", cible: s.url || s.dossier, type: s.type, avecAcces: s.authDefinie || s.connexionAuto,
+      requete: () => fetch("/api/sources/" + encodeURIComponent(id) + "/tester", { method: "POST" }), enregistrer: false });
+  } else if (b.dataset.a === "bascule") {
+    await post("/api/sources/" + encodeURIComponent(id), { actif: b.dataset.actif !== "true" }, "PATCH");
+    charger();
+  } else if (b.dataset.a === "supprimer") {
+    if (confirm("Supprimer la source « " + b.dataset.nom + " » ?\nLes journaux déjà traités sont conservés.")) {
+      await fetch("/api/sources/" + encodeURIComponent(id), { method: "DELETE" });
+      charger();
+    }
+  }
+};
+
+/* ---------- Formulaire d'ajout ---------- */
+function majAcces() {
+  const a = $("acces").value;
+  document.querySelectorAll("[data-acces]").forEach((g) => { g.hidden = g.dataset.acces !== a; });
+}
+function majGroupes() {
+  const t = $("type").value;
+  document.querySelectorAll(".groupe").forEach((g) => { g.hidden = !g.dataset.types.split(" ").includes(t); });
+  majAcces();
+}
+$("type").onchange = majGroupes;
+$("acces").onchange = majAcces;
+$("ajouter").onclick = () => { $("erreurForm").textContent = ""; majGroupes(); $("dlgAjout").showModal(); $("nom").focus(); };
+$("annulerAjout").onclick = () => $("dlgAjout").close();
+$("preLaNation").onclick = () => {
+  $("type").value = "page"; majGroupes();
+  $("nom").value = "La Nation Bénin";
+  $("url").value = "https://lanation.bj/user/newspapers";
+  $("acces").value = "identifiants"; majAcces();
+  $("urlconnexion").value = "https://lanation.bj/login";
+  $("entete").value = "Cookie";
+  $("regex").value = "/user/newspapers/[^/?]+";
+  $("garder").value = "0";
+  $("identifiant").focus();
+};
+
+function charge() {
+  const t = $("type").value;
+  const o = { type: t, nom: $("nom").value.trim() };
+  if (t === "dossier") o.dossier = $("dossier").value.trim();
+  else {
+    o.url = $("url").value.trim(); o.acces = $("acces").value;
+    if (o.acces === "identifiants") { o.identifiant = $("identifiant").value.trim(); o.motDePasse = $("motdepasse").value; o.urlConnexion = $("urlconnexion").value.trim(); }
+    else { o.authEntete = $("entete").value.trim(); o.auth = $("auth").value.trim(); }
+    o.garder = Number($("garder").value) || 0;
+    if (t === "page") o.lienRegex = $("regex").value.trim();
+    if (t === "json") { o.listPath = $("listPath").value.trim(); o.titleField = $("titleField").value.trim(); o.urlField = $("urlField").value.trim(); }
+  }
+  return o;
+}
+
+$("formAjout").onsubmit = async (e) => {
+  e.preventDefault();
+  const o = charge();
+  $("erreurForm").textContent = "";
+  const hote = o.url ? (() => { try { return new URL(o.url).host; } catch { return o.url; } })() : o.dossier;
+  $("dlgAjout").close();
+  await lancerConnexion({
+    titre: "Connexion à " + hote, cible: hote, type: o.type, avecAcces: !!(o.auth || o.identifiant), avecAjout: true,
+    requete: () => post("/api/sources/tester", o),
+    enregistrer: async () => post("/api/sources", o),
+    modifier: () => { $("dlgConnexion").close(); $("dlgAjout").showModal(); },
+  });
+};
+
+/* ---------- Boîte de dialogue « connexion en cours » ---------- */
+function etapesPrevues(type, avecAcces) {
+  return type === "dossier" ? ["Accès au dossier", "Lecture des fichiers"]
+    : ["Connexion au site", avecAcces ? "Authentification" : "Accès public", "Lecture de la liste des journaux"];
+}
+function dessiner(libelles, etat, detail) {
+  // etat[i] : "ok" | "ko" | "att" | "" (pas encore atteinte)
+  $("etapes").innerHTML = libelles.map((l, i) => `<li><span class="ico ${etat[i] || ""}" aria-hidden="true">${etat[i] === "ok" ? "✓" : etat[i] === "ko" ? "✕" : ""}</span>
+    <span>${U.esc(l)}${etat[i] === "ko" && detail ? `<span class="detail">${U.esc(detail)}</span>` : ""}</span></li>`).join("");
+}
+function boutons(liste) {
+  const z = $("boutonsConnexion");
+  z.hidden = false;
+  z.innerHTML = liste.map((b, i) => `<button type="button" class="btn ${b.secondaire ? "s" : ""}" data-i="${i}">${b.texte}</button>`).join("");
+  z.onclick = (ev) => { const x = ev.target.closest("button[data-i]"); if (x) liste[Number(x.dataset.i)].action(); };
+}
+
+async function lancerConnexion(o) {
+  const dlg = $("dlgConnexion");
+  const libelles = etapesPrevues(o.type, o.avecAcces);
+  $("titreConnexion").textContent = o.titre + "…";
+  $("sousTitre").textContent = "Veuillez patienter, la connexion est en cours d'établissement.";
+  $("bandeau").innerHTML = ""; $("boutonsConnexion").hidden = true;
+  dessiner(libelles, ["att"]);
+  if (!dlg.open) dlg.showModal();
+
+  const debut = Date.now();
+  let r;
+  try {
+    const rep = await o.requete();
+    r = await rep.json();
+    if (!rep.ok && !r.etapes) r = { ok: false, etapes: [], message: r.erreur || "Requête refusée" };
+  } catch (e) {
+    r = { ok: false, etapes: [], message: "Le serveur de l'interface ne répond pas." };
+  }
+  await pause(Math.max(0, 1200 - (Date.now() - debut))); // laisse le temps de voir la progression
+
+  // Rejoue les étapes réellement effectuées, une par une
+  const etat = [];
+  let detail = "";
+  for (let i = 0; i < r.etapes.length; i++) {
+    etat[i] = r.etapes[i].statut === "ok" ? "ok" : "ko";
+    if (etat[i] === "ko") detail = r.etapes[i].detail || r.message;
+    if (etat[i] === "ok" && i + 1 < libelles.length) etat[i + 1] = "att";
+    dessiner(libelles, etat, detail);
+    await pause(650);
+  }
+
+  if (!r.ok) {
+    $("titreConnexion").textContent = "Échec de la connexion";
+    $("sousTitre").textContent = "";
+    if (!r.etapes.length) dessiner(libelles, ["ko"], r.message);
+    $("bandeau").innerHTML = `<div class="bandeau ko" role="alert"><b>La connexion a échoué.</b><br>${U.esc(r.message)}</div>`;
+    boutons([...(o.modifier ? [{ texte: "Modifier", action: o.modifier }] : []), { texte: "Fermer", secondaire: true, action: () => dlg.close() }]);
+    return;
+  }
+
+  const exemples = (r.exemples || []).map((t) => `<li>${U.esc(t)}</li>`).join("");
+  if (o.enregistrer) {
+    $("titreConnexion").textContent = "Connexion réussie";
+    $("sousTitre").textContent = "Enregistrement de la source…";
+    const rep = await o.enregistrer();
+    const a = await rep.json();
+    if (!rep.ok) {
+      $("titreConnexion").textContent = "Échec de l'ajout";
+      $("sousTitre").textContent = "";
+      $("bandeau").innerHTML = `<div class="bandeau ko" role="alert"><b>La source n'a pas été ajoutée.</b><br>${U.esc(a.erreur || "Erreur inconnue")}</div>`;
+      boutons([{ texte: "Fermer", secondaire: true, action: () => dlg.close() }]);
+      return;
+    }
+    $("titreConnexion").textContent = "Source ajoutée";
+    $("sousTitre").textContent = "";
+    $("bandeau").innerHTML = `<div class="bandeau ok" role="status"><b>Connexion établie : ${r.nombre} journal(aux) détecté(s).</b>
+      ${exemples ? `<ul style="margin:8px 0 0 18px;padding:0">${exemples}</ul>` : ""}
+      ${a.ignores ? `<div style="margin-top:8px">${a.ignores} journal(aux) déjà publié(s) ignoré(s) ; seuls les nouveaux seront traités.</div>` : ""}</div>`;
+    $("ajouter").focus();
+    boutons([{ texte: "Terminer", action: () => { dlg.close(); $("formAjout").reset(); majGroupes(); charger(); } }]);
+  } else {
+    $("titreConnexion").textContent = "Connexion réussie";
+    $("sousTitre").textContent = "";
+    $("bandeau").innerHTML = `<div class="bandeau ok" role="status"><b>${U.esc(r.message)}</b>${exemples ? `<ul style="margin:8px 0 0 18px;padding:0">${exemples}</ul>` : ""}</div>`;
+    boutons([{ texte: "Fermer", action: () => dlg.close() }]);
+  }
+}
+majGroupes();
+charger();
+</script>
+</body>
+</html>

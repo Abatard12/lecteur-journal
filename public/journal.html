@@ -17,6 +17,26 @@
 <script>
 const $ = (id) => document.getElementById(id);
 
+// Contenu de la carte « Parcours » (flèches, couleurs, incident éventuel)
+function contenuParcours(x) {
+  const inc = x.incident;
+  const nom = inc ? ((x.parcours.find((p) => p.cle === inc.etape) || {}).nom || inc.etape) : "";
+  const bandeau = inc
+    ? `<div class="bandeau ${inc.type === "reporte" ? "a" : "ko"}" role="status"><b>${inc.type === "reporte" ? "Reporté" : "Échec"} à l'étape « ${U.esc(nom)} »</b><br>${U.esc(inc.message)}<br><span class="mut">${U.dateHeure(inc.le)}</span></div>`
+    : "";
+  return U.parcours(x.parcours) + U.legende() + bandeau;
+}
+
+// Tant qu'une étape est en cours, la carte se met à jour toute seule (sans toucher au reste de la page)
+async function rafraichirParcours(id) {
+  const r = await fetch("/api/journal?id=" + encodeURIComponent(id));
+  if (!r.ok) return;
+  const x = await r.json();
+  const z = document.getElementById("parcours");
+  if (z) z.innerHTML = "<h2>Parcours du journal</h2>" + contenuParcours(x);
+  if (x.parcours.some((p) => p.etat === "en_cours")) setTimeout(() => rafraichirParcours(id), 3000);
+}
+
 async function charger() {
   const zone = $("contenu");
   const id = new URLSearchParams(location.search).get("id");
@@ -56,6 +76,7 @@ async function charger() {
 
   zone.innerHTML = `
     <div class="entete" style="margin:8px 0 24px"><h1>${U.esc(j.titre)}</h1><span class="chip grand ${classe}">${libelle}</span></div>
+    <div class="card" id="parcours" style="margin-bottom:16px"><h2>Parcours du journal</h2>${contenuParcours(j)}</div>
     <div class="cols">
       <div class="principale">
         <div class="card"><h2>Résumé généré par l'IA</h2>${resume}<div class="actions">${boutons}</div>
@@ -94,7 +115,8 @@ async function charger() {
     const d = await r.json();
     if (r.ok) { await charger(); $("msg").textContent = "Renommé : " + d.resumeFichier; }
     else $("msg").textContent = d.erreur || "Échec du renommage";
-  };
+   };
+  if (j.parcours.some((p) => p.etat === "en_cours")) setTimeout(() => rafraichirParcours(j.id), 3000);
 }
 charger();
 </script>

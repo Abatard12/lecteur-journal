@@ -21,9 +21,8 @@
       <button class="btn" id="lancer" type="button">Lancer le robot maintenant</button>
       <span class="mut" id="etatRobot" role="status">Prêt.</span>
     </div>
-    <pre class="sortie" id="sortie" hidden></pre>
   </div>
-  <div class="card"><h2>Parcours d'un journal</h2><div class="flux" id="flux"></div></div>
+   <div class="card"><h2>Parcours des journaux</h2><div id="flux"></div><div id="legende"></div></div>
   <div class="card"><div class="entete"><h2>Derniers journaux</h2><a href="/journaux.html" class="mut">Voir tout →</a></div>
     <div class="tableau" id="liste"></div></div>
 </main>
@@ -39,18 +38,20 @@ async function charger() {
       ["Journaux détectés", k.detectes], ["Pertinents (domaine)", k.pertinents],
       ["Mails envoyés", k.envoyes], ["Suppressions à venir", k.suppressionsAVenir],
     ].map(([t, v]) => `<div class="card"><div class="mut">${t}</div><div class="big">${v}</div></div>`).join("");
-    $("flux").innerHTML = d.parcours.map((p, i) =>
-      `<div class="etape"><div class="rond" style="background:${i < 5 ? "#534AB7" : "#0F766E"}">${p.nombre}</div>${U.esc(p.etape)}</div>`).join("");
+       $("flux").innerHTML = U.parcours(U.parcoursGlobal(d.journaux));
+    $("legende").innerHTML = U.legende();
     const lignes = d.journaux.slice(0, 5);
     $("liste").innerHTML = lignes.length
-      ? `<table><tr><th>Journal</th><th>Mots-clés</th><th>Statut</th><th>Suppression</th></tr>` +
+      ? `<table><tr><th>Journal</th><th>Mots-clés</th><th>Statut</th><th>Parcours</th><th>Suppression</th></tr>` +
         lignes.map((j) => {
           const mots = Object.keys(j.motsCles).map((m) => `<span class="chip">${U.esc(m)}</span>`).join("") || '<span class="mut">aucun</span>';
-          return `<tr><td><a href="journal.html?id=${encodeURIComponent(j.id)}">${U.esc(j.titre)}</a></td><td>${mots}</td><td>${U.statut(j.statut)}</td><td class="mut">${U.date(j.suppressionLe)}</td></tr>`;
+          return `<tr><td><a href="journal.html?id=${encodeURIComponent(j.id)}">${U.esc(j.titre)}</a></td><td>${mots}</td><td>${U.statut(j.statut)}</td><td>${U.mini(j.parcours)}</td><td class="mut">${U.date(j.suppressionLe)}</td></tr>`;
         }).join("") + `</table>`
       : '<div class="mut">Aucun journal pour le moment. Déposez un fichier dans le dossier surveillé, puis lancez le robot.</div>';
   } catch (e) { $("liste").textContent = "Impossible de lire les données."; }
 }
+
+let rafraichi = null; // évite d'empiler les rafraîchissements
 
 async function chargerRobot() {
   try {
@@ -59,6 +60,8 @@ async function chargerRobot() {
     $("passages").textContent =
       "Dernier passage : " + (p && p.fin ? U.jourHeure(p.fin) + " (" + p.nouveaux + " nouveau(x), " + p.envoyes + " mail(s))" : "aucun") +
       " · Prochain passage : " + U.jourHeure(r.prochain);
+    // Pendant le travail du robot, on ne met à jour que l'état, pas les compteurs
+    if (r.enCours && !rafraichi) rafraichi = setTimeout(() => { rafraichi = null; chargerRobot(); }, 3000);
     const pl = r.planification;
     let texte = "Robot actif", classe = "";
     if (r.enCours) { texte = "En cours d'exécution"; classe = "a"; }
@@ -74,7 +77,6 @@ async function chargerRobot() {
 let suivi = null;
 function afficherExec(x) {
   $("lancer").disabled = x.enCours;
-  if (x.sortie) { $("sortie").hidden = false; $("sortie").textContent = x.sortie; $("sortie").scrollTop = $("sortie").scrollHeight; }
   if (x.enCours) $("etatRobot").textContent = "Le robot travaille…";
   else if (x.fin) $("etatRobot").textContent =
     (x.code === 0 ? "Terminé" : "Terminé avec une erreur (code " + x.code + ")") + " à " + new Date(x.fin).toLocaleTimeString("fr-FR");
@@ -82,7 +84,7 @@ function afficherExec(x) {
 async function suivre() {
   const x = await (await fetch("/api/lancer")).json();
   afficherExec(x);
-  if (x.enCours) suivi = setTimeout(suivre, 1500);
+  if (x.enCours) { suivi = setTimeout(suivre, 1500); }
   else { suivi = null; charger(); chargerRobot(); }
 }
 $("lancer").onclick = async () => {
@@ -91,7 +93,7 @@ $("lancer").onclick = async () => {
   if (!suivi) suivre();
 };
 charger(); chargerRobot(); suivre();
-setInterval(() => { charger(); chargerRobot(); }, 30000);
+setInterval(() => { if (!suivi) charger(); chargerRobot(); }, 30000);
 </script>
 </body>
 </html>

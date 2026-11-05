@@ -61,6 +61,13 @@ export const config = {
     ? f.motsCles
     : liste(process.env.MOTS_CLES ?? "AfGD,durabilité,cybersécurité"),
   heures: f.heures?.length ? f.heures : liste(process.env.HEURES_PASSAGE ?? "07:00,17:00"),
+    performance: {
+    concurrenceIA: Math.min(6, Math.max(1, Number(process.env.CONCURRENCE_IA ?? 1))),
+    concurrence: Math.min(6, Math.max(1, Number(process.env.CONCURRENCE ?? 3))),
+    resumeMaxCaracteres: Math.max(5000, Number(process.env.RESUME_MAX_CARACTERES ?? 30000)),
+    maxTokens: Math.max(500, Number(process.env.RESUME_MAX_TOKENS ?? 4000)),
+    reflexion: (process.env.GEMINI_REFLEXION ?? "") === "" ? null : Number(process.env.GEMINI_REFLEXION),
+  },
   ia: calculerIA(f.fournisseurIA ?? process.env.IA_FOURNISSEUR ?? "gemini", f.modeleIA),
   mail: {
     utilisateur: process.env.GMAIL_USER ?? "",

@@ -16,16 +16,29 @@ export type CopieMail = {
   pieces: string[];
 };
 
+let connexion: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+// Une seule connexion SMTP réutilisée pour tous les mails du passage
 function transport() {
   const { utilisateur, motDePasse, destinataires } = config.mail;
   if (!utilisateur || !motDePasse) throw new Error("GMAIL_USER ou GMAIL_APP_PASSWORD manquant dans .env");
   if (destinataires.length === 0) throw new Error("Aucun destinataire (réglages ou MAIL_TO)");
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user: utilisateur, pass: motDePasse },
-  });
+  if (!connexion) {
+    connexion = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      pool: true,
+      maxConnections: 2,
+      auth: { user: utilisateur, pass: motDePasse },
+    });
+  }
+  return connexion;
+}
+
+export function fermerMail() {
+  connexion?.close();
+  connexion = null;
 }
 
 const expediteur = () => `${config.mail.nom} <${config.mail.utilisateur}>`;
